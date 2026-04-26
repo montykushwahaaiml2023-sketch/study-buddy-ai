@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "sqlite"
+  url       = "file:./dev.db"
+}
+
+// --- Core Tables ---
+
+model User {
+  id               String            @id @default(uuid())
+  name             String            @unique
+  email            String?           @unique
+  passwordHash     String?
+  avatarUrl        String?
+  clerkId          String?           @unique
+  createdAt        DateTime          @default(now())
+  lastActiveAt     DateTime          @updatedAt
+  
+  // Relations
+  profile          Profile?
+  skills           Skill[]
+  events           Event[]
+  tasks            Task[]
+  studySessions    StudySession[]
+  aiChats          AIChat[]
+  contextSnapshots AIContextSnapshot[]
+  quizAttempts     QuizAttempt[]
+  weakAreas        WeakArea[]
+  performance      PerformanceReport[]
+  achievements     UserAchievement[]
+}
+
+model Profile {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  studyLevel             String?
+  school                 String?
+  course                 String?
+  stream                 String?
+  branch                 String?
+  year                   String?
+  semester               String?
+  careerGoal             String?
+  targetSalary           String?
+  learningStyle          String?  
+  dailyStudyHoursTarget  Float    @default(2.0)
+  preferredStudyTime     String?  
+  language               String   @default("English")
+  access                 String?
+  
+  streak                 Int      @default(0)
+  streakLastUpdated      DateTime @default(now())
+  xpPoints               Int      @default(0)
+  level                  Int      @default(1)
+  
+  // SQLite does not support arrays, using String to store comma-separated values
+  interestedIn           String?
+  biggestProblem         String?
+  careerRoadmapJson      String?
+  
+  updatedAt              DateTime @updatedAt
+}
+
+model Skill {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillName      String
+  proficiencyPct Int       @default(0)
+  lastAssessedAt DateTime  @default(now())
+  source         String    @default("manual") 
+  
+  @@unique([userId, skillName])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  subject     String
+  examDate    DateTime
+  dailyHours  Float    @default(2.0)
+  syllabus    String?
+  // SQLite using String for JSON
+  plan        String?    
+  createdAt   DateTime @default(now())
+  
+  tasks       Task[]
+}
+
+model Task {
+  id               String    @id @default(uuid())
+  eventId          String
+  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic            String
+  scheduledDate    DateTime
+  durationMinutes  Int
+  isCompleted      Boolean   @default(false)
+  completedAt      DateTime?
+  difficulty       String    @default("medium") 
+  type             String?   
+  priority         String    @default("medium")
+}
+
+model StudySession {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject         String
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+  durationMinutes Int      @default(0)
+  focusScore      Int?     
+}
+
+model AIChat {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  createdAt DateTime    @default(now())
+  messages  AIMessage[]
+}
+
+model AIMessage {
+  id         String   @id @default(uuid())
+  chatId     String
+  chat       AIChat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role       String   
+  content    String
+  tokensUsed Int?
+  createdAt  DateTime @default(now())
+}
+
+model AIContextSnapshot {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // SQLite using String for JSON
+  snapshotJson String     
+  createdAt    DateTime @default(now())
+}
+
+model QuizAttempt {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject        String
+  topic          String
+  scorePct       Float
+  totalQuestions Int
+  correct        Int
+  timeTakenSec   Int
+  takenAt        DateTime @default(now())
+}
+
+model WeakArea {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject        String
+  topic          String
+  weaknessScore  Int      @default(0) 
+  lastUpdated    DateTime @updatedAt
+  
+  @@unique([userId, subject, topic])
+}
+
+model PerformanceReport {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart       DateTime
+  totalHours      Float
+  tasksCompleted  Int
+  avgQuizScore    Float
+  // SQLite does not support arrays
+  subjectsCovered String?
+  createdAt       DateTime @default(now())
+}
+
+model Achievement {
+  id             String            @id @default(uuid())
+  label          String
+  description    String
+  icon           String
+  conditionType  String            
+  conditionValue Int
+  
+  users          UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+  
+  @@unique([userId, achievementId])
+}
+
+model CallSession {
+  id          String   @id @default(uuid())
+  callSid     String?  @unique
+  // SQLite using String for JSON
+  profile     String
+  eventId     String
+  taskId      String?
+  taskName    String
+  reason      String   @default("deadline")
+  createdAt   DateTime @default(now())
+
+  @@index([eventId])
+}
+
+model TwilioUpdate {
+  id           String   @id @default(uuid())
+  eventId      String
+  // SQLite using String for JSON
+  newTasks     String
+  voiceCommand String?
+  processed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([eventId])
+}
