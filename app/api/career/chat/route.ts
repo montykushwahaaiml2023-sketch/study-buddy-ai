@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
-const apiKey = process.env.GROQ_API_KEY;
-const groq = new Groq({ apiKey });
+// Initialize Groq client on-demand inside the route handler
+function getGroqClient() {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY environment variable is not set");
+  }
+  return new Groq({ apiKey });
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,6 +27,8 @@ export async function POST(req: Request) {
     Your goal is to give precise, encouraging, and highly technical career advice based on their roadmap.
     If they haven't generated a roadmap yet, encourage them to define a goal.
     Be concise (minimalism is the theme).`;
+
+    const groq = getGroqClient();
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
